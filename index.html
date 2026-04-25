@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HANA STAY 주차관리</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@500&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3248;
+    --accent: #4f8ef7;
+    --green: #3ecf8e;
+    --red: #f75c5c;
+    --yellow: #f7c94f;
+    --text: #e8eaf2;
+    --text2: #8b90a8;
+    --text3: #555a72;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    padding: 14px;
+  }
+
+  /* ── 헤더 ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-size: 16px; font-weight: 700; }
+  .logo span { color: var(--accent); }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+
+  .sync-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sync-btn.syncing { color: var(--yellow); border-color: var(--yellow); }
+
+  /* ── 통계 ── */
+  .stats {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 6px;
+    text-align: center;
+  }
+  .stat-num { font-size: 20px; font-weight: 700; font-family: 'DM Mono', monospace; }
+  .stat-num.red { color: var(--red); }
+  .stat-num.green { color: var(--green); }
+  .stat-num.yellow { color: var(--yellow); }
+  .stat-label { font-size: 10px; color: var(--text2); margin-top: 1px; }
+
+  /* ── 배너 ── */
+  .today-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 9px 14px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .today-banner strong { color: var(--text); }
+
+  /* ── 맵 래퍼 ── */
+  .map-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px 18px;
+  }
+
+  .map-title {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  .road {
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+  }
+
+  /* ── 열 레이아웃 ── */
+  .lanes-map {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .lane-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .lane-label {
+    font-size: 10px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 5px;
+  }
+
+  /* ── 슬롯 블록 ── */
+  .slot-block {
+    width: 76px;
+    height: 64px;
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: transform 0.12s, box-shadow 0.12s;
+    border: 2px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (min-width: 400px) { .slot-block { width: 84px; height: 70px; } }
+  @media (min-width: 500px) { .slot-block { width: 96px; height: 78px; } }
+
+  .slot-block:hover { transform: scale(1.05); box-shadow: 0 4px 18px rgba(0,0,0,0.5); z-index: 2; }
+  .slot-block:active { transform: scale(0.94); }
+
+  .slot-block.empty { background: var(--surface2); border-color: var(--border); }
+  .slot-block.outer-occ { background: linear-gradient(150deg,#1d4f8a,#163d70); border-color: var(--accent); }
+  .slot-block.inner-occ { background: linear-gradient(150deg,#1e3870,#122858); border-color: #6b7ef7; }
+  .slot-block.alert-slot {
+    background: linear-gradient(150deg,#4a3800,#382800);
+    border-color: var(--yellow);
+    animation: alertPulse 1.6s infinite;
+  }
+  @keyframes alertPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(247,201,79,0); }
+    50% { box-shadow: 0 0 0 5px rgba(247,201,79,0.2); }
+  }
+
+  /* 블록 내부 텍스트 — 호실 + 차량번호만 크게 */
+  .s-pos {
+    font-size: 9px;
+    font-family: 'DM Mono', monospace;
+    color: rgba(255,255,255,0.3);
+    line-height: 1;
+    position: absolute;
+    top: 5px; left: 7px;
+  }
+  .empty .s-pos { color: var(--text3); }
+
+  .s-alert {
+    position: absolute;
+    top: 3px; right: 5px;
+    font-size: 11px;
+  }
+
+  .s-room {
+    font-size: 17px;
+    font-weight: 700;
+    color: white;
+    line-height: 1;
+  }
+  @media (min-width: 400px) { .s-room { font-size: 19px; } }
+
+  .s-car {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: rgba(255,255,255,0.7);
+    line-height: 1;
+    max-width: 72px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (min-width: 400px) { .s-car { font-size: 11px; max-width: 80px; } }
+
+  .s-p-icon { font-size: 22px; color: var(--text3); line-height: 1; }
+
+  /* 이중주차 구분 */
+  .double-sep {
+    width: 100%;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin: 2px 0;
+  }
+  .double-sep::before {
+    content: '';
+    position: absolute;
+    left: 4px; right: 4px;
+    height: 1px;
+    background: var(--border);
+  }
+  .double-sep-label {
+    background: var(--surface);
+    padding: 0 4px;
+    font-size: 8px;
+    color: var(--text3);
+    position: relative;
+    z-index: 1;
+  }
+
+  .entrance {
+    text-align: center;
+    margin-top: 12px;
+    font-size: 10px;
+    color: var(--text3);
+  }
+  .entrance-arrow { font-size: 14px; color: var(--green); display: block; }
+
+  /* ── 상세 팝업 (탭 시) ── */
+  .detail-popup {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 90;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .detail-popup.open { display: flex; }
+
+  .detail-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px 28px;
+    width: 100%;
+    max-width: 480px;
+    animation: slideUp 0.22s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .detail-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .detail-room { font-size: 24px; font-weight: 700; line-height: 1; }
+  .detail-pos { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  .detail-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .badge-ok { background: rgba(79,142,247,0.15); color: var(--accent); border: 1px solid rgba(79,142,247,0.3); }
+  .badge-warn { background: rgba(247,201,79,0.15); color: var(--yellow); border: 1px solid rgba(247,201,79,0.3); }
+
+  .detail-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+
+  .detail-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 11px 14px;
+  }
+  .detail-row-icon { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
+  .detail-row-content { flex: 1; }
+  .detail-row-label { font-size: 10px; color: var(--text2); margin-bottom: 2px; }
+  .detail-row-value { font-size: 14px; font-weight: 500; }
+  .detail-row-value.mono { font-family: 'DM Mono', monospace; font-size: 15px; }
+
+  .call-btn {
+    background: var(--green);
+    color: #0a1a12;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .detail-btn-row { display: flex; gap: 8px; }
+  .btn {
+    flex: 1; padding: 12px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; font-family: inherit;
+    cursor: pointer; border: none; transition: opacity 0.2s;
+  }
+  .btn:active { opacity: 0.7; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-cancel { background: var(--surface2); color: var(--text2); }
+
+  /* ── 수정 모달 ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 100;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 22px 20px 36px;
+    width: 100%;
+    max-width: 480px;
+    animation: slideUp 0.22s ease;
+  }
+  .modal-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 18px; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 3px; }
+  .modal-subtitle { font-size: 12px; color: var(--text2); margin-bottom: 18px; }
+
+  .form-group { margin-bottom: 12px; }
+  .form-label { font-size: 12px; color: var(--text2); margin-bottom: 5px; display: block; }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+
+  /* ── 토스트 ── */
+  .toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-size: 13px;
+    z-index: 200;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HANA <span>STAY</span> 주차</div>
+  <div class="header-right">
+    <button class="sync-btn" id="syncBtn" onclick="syncData()">↻ 동기화</button>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-num red" id="statOccupied">0</div>
+    <div class="stat-label">사용 중</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num green" id="statFree">10</div>
+    <div class="stat-label">빈자리</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num yellow" id="statAlert">0</div>
+    <div class="stat-label">연락필요</div>
+  </div>
+</div>
+
+<div class="today-banner" id="todayBanner">로딩 중...</div>
+
+<div class="map-wrap">
+  <div class="map-title">P A R K I N G &nbsp; M A P</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--surface2);border:1px solid var(--border)"></div>빈자리</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1d4f8a;border:1px solid var(--accent)"></div>바깥</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1e3870;border:1px solid #6b7ef7"></div>안쪽</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4a3800;border:1px solid var(--yellow)"></div>⚠ 연락필요</div>
+  </div>
+  <div class="road">← &nbsp;&nbsp; 도 &nbsp; 로 &nbsp;&nbsp; →</div>
+  <div class="lanes-map" id="lanesMap"></div>
+  <div class="entrance">
+    <span class="entrance-arrow">↑</span>
+    진입구
+  </div>
+</div>
+
+<!-- 상세 팝업 -->
+<div class="detail-popup" id="detailPopup">
+  <div class="detail-card">
+    <div class="detail-handle"></div>
+    <div class="detail-header">
+      <div>
+        <div class="detail-room" id="detailRoom">—</div>
+        <div class="detail-pos" id="detailPos"></div>
+      </div>
+      <div class="detail-badge" id="detailBadge"></div>
+    </div>
+    <div class="detail-rows">
+      <div class="detail-row">
+        <div class="detail-row-icon">🚗</div>
+        <div class="detail-row-content">
+          <div class="detail-row-label">차량번호</div>
+          <div class="detail-row-value mono" id="detailCar">—</div>
+        </div>
+      </div>
+      <div class="detail-row">
+        <div class="detail-row-icon">📅</div>
+        <div class="detail-row-content">
+          <div class="detail-row-label">입차 ~ 출차</div>
+          <div class="detail-row-value" id="detailDates">—</div>
+        </div>
+      </div>
+      <div class="detail-row" id="detailContactRow" style="display:none">
+        <div class="detail-row-icon">📞</div>
+        <div class="detail-row-content">
+          <div class="detail-row-label">연락처</div>
+          <div class="detail-row-value mono" id="detailContact">—</div>
+        </div>
+        <a class="call-btn" id="callBtn" href="#">📞 전화</a>
+      </div>
+      <div class="detail-row" id="detailMemoRow" style="display:none">
+        <div class="detail-row-icon">📝</div>
+        <div class="detail-row-content">
+          <div class="detail-row-label">메모</div>
+          <div class="detail-row-value" id="detailMemo">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-btn-row">
+      <button class="btn btn-cancel" onclick="closeDetail()">닫기</button>
+      <button class="btn btn-danger" onclick="clearFromDetail()">비우기</button>
+      <button class="btn btn-primary" onclick="openEditFromDetail()">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- 수정/등록 모달 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle">주차 등록</div>
+    <div class="modal-subtitle" id="modalSubtitle"></div>
+    <div class="form-group">
+      <label class="form-label">호실 번호</label>
+      <input class="form-input" id="inputRoom" placeholder="예: 301" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">차량 번호</label>
+      <input class="form-input" id="inputCar" placeholder="예: 12가 3456" type="text">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">입차일</label>
+        <input class="form-input" id="inputStart" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">출차일</label>
+        <input class="form-input" id="inputEnd" type="date">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">연락처</label>
+      <input class="form-input" id="inputContact" placeholder="010-0000-0000" type="tel">
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모 (선택)</label>
+      <input class="form-input" id="inputMemo" placeholder="특이사항 등" type="text">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-cancel" onclick="closeModal()">취소</button>
+      <button class="btn btn-primary" onclick="saveSlot()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const WORKER_URL = 'https://parking-vagabond1984.workers.dev';
+const KV_KEY = 'parking_data';
+
+const LANES = [
+  { id:'L1', label:'1열', slots:[
+    { id:'L1-1', pos:'1-①', position:'outer' },
+    { id:'L1-2', pos:'1-②', position:'inner' },
+  ]},
+  { id:'L2', label:'2열', slots:[
+    { id:'L2-1', pos:'2-①', position:'outer' },
+    { id:'L2-2', pos:'2-②', position:'inner' },
+  ]},
+  { id:'L3', label:'3열', slots:[
+    { id:'L3-1', pos:'3-①', position:'outer' },
+    { id:'L3-2', pos:'3-②', position:'inner' },
+    { id:'L3-3', pos:'3-③', position:'inner' },
+  ]},
+  { id:'L4', label:'4열', slots:[
+    { id:'L4-1', pos:'4-①', position:'outer' },
+    { id:'L4-2', pos:'4-②', position:'inner' },
+    { id:'L4-3', pos:'4-③', position:'inner' },
+  ]},
+];
+
+let parkingData = {};
+let currentSlotId = null;
+let currentSlotMeta = null; // { laneLabel, slotPos }
+
+// ── 자동 출차 정리 ──────────────────────────────
+// 출차일 다음날부터 삭제 (출차 당일에는 유지)
+function autoExpire() {
+  const today = new Date().toISOString().slice(0,10);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0,10);
+  
+  let changed = false;
+  Object.keys(parkingData).forEach(key => {
+    // 출차일이 내일보다 이전이면 (= 어제 이전) 삭제
+    if (parkingData[key].end && parkingData[key].end < tomorrowStr) {
+      delete parkingData[key];
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+// ── KV 연동 ────────────────────────────────────
+async function loadData() {
+  try {
+    const res = await fetch(`${WORKER_URL}/kv?key=${KV_KEY}`);
+    if (res.ok) {
+      const json = await res.json();
+      parkingData = json.value ? JSON.parse(json.value) : {};
+    }
+  } catch(e) {
+    const local = localStorage.getItem('parking_data');
+    if (local) parkingData = JSON.parse(local);
+  }
+  // 출차일 지난 슬롯 자동 삭제
+  const expired = autoExpire();
+  if (expired) await saveData();
+  render();
+}
+
+async function saveData() {
+  localStorage.setItem('parking_data', JSON.stringify(parkingData));
+  try {
+    await fetch(`${WORKER_URL}/kv`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: KV_KEY, value: JSON.stringify(parkingData) })
+    });
+  } catch(e) {}
+}
+
+async function syncData() {
+  const btn = document.getElementById('syncBtn');
+  btn.textContent = '동기화 중...';
+  btn.classList.add('syncing');
+  await loadData();
+  btn.textContent = '↻ 동기화';
+  btn.classList.remove('syncing');
+  showToast('동기화 완료');
+}
+
+// ── 연락필요 판단 ──────────────────────────────
+function isAlert(lane, idx) {
+  if (lane.slots[idx].position !== 'outer') return false;
+  const hasInner = lane.slots.some(s => s.position === 'inner' && parkingData[s.id]);
+  return hasInner && !!parkingData[lane.slots[idx].id];
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  return d.slice(5).replace('-', '/');
+}
+
+function fmtDateFull(d) {
+  if (!d) return '';
+  return d.replace(/-/g, '. ');
+}
+
+// ── 렌더링 ─────────────────────────────────────
+function render() {
+  const today = new Date().toISOString().slice(0,10);
+  let occupied = 0, alertCount = 0;
+  const mapEl = document.getElementById('lanesMap');
+  mapEl.innerHTML = '';
+
+  LANES.forEach(lane => {
+    const col = document.createElement('div');
+    col.className = 'lane-col';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'lane-label';
+    lbl.textContent = lane.label;
+    col.appendChild(lbl);
+
+    lane.slots.forEach((slot, idx) => {
+      const data = parkingData[slot.id];
+      const alert = isAlert(lane, idx);
+      if (data) occupied++;
+      if (alert) alertCount++;
+
+      // 이중주차 구분선
+      if (idx > 0 && slot.position === 'inner' && lane.slots[idx-1].position === 'outer') {
+        const sep = document.createElement('div');
+        sep.className = 'double-sep';
+        sep.innerHTML = '<span class="double-sep-label">↕</span>';
+        col.appendChild(sep);
+      }
+
+      const block = document.createElement('div');
+      block.className = 'slot-block';
+      if (alert) block.classList.add('alert-slot');
+      else if (data && slot.position === 'outer') block.classList.add('outer-occ');
+      else if (data && slot.position === 'inner') block.classList.add('inner-occ');
+      else block.classList.add('empty');
+
+      // 빈 슬롯 탭 → 등록 모달
+      // 점유 슬롯 탭 → 상세 팝업
+      if (data) {
+        block.onclick = () => openDetail(slot.id, lane.label, slot.pos, alert);
+      } else {
+        block.onclick = () => openModal(slot.id, lane.label, slot.pos);
+      }
+
+      if (data) {
+        block.innerHTML = `
+          <div class="s-pos">${slot.pos}</div>
+          ${alert ? '<div class="s-alert">⚠️</div>' : ''}
+          <div class="s-room">${data.room}호</div>
+          <div class="s-car">${data.car}</div>`;
+      } else {
+        block.innerHTML = `
+          <div class="s-pos">${slot.pos}</div>
+          <div class="s-p-icon">P</div>`;
+      }
+
+      col.appendChild(block);
+    });
+
+    mapEl.appendChild(col);
+  });
+
+  document.getElementById('statOccupied').textContent = occupied;
+  document.getElementById('statFree').textContent = 10 - occupied;
+  document.getElementById('statAlert').textContent = alertCount;
+
+  // 오늘 출차 배너 (오늘 = 출차일)
+  const checkouts = Object.values(parkingData)
+    .filter(d => d.end === today)
+    .map(d => d.room + '호');
+  const ds = today.slice(5).replace('-', '/');
+  const banner = document.getElementById('todayBanner');
+  if (checkouts.length) {
+    banner.innerHTML = `오늘 <strong>${ds}</strong> 출차 예정: <strong style="color:var(--yellow)">${checkouts.join(', ')}</strong>`;
+  } else {
+    banner.innerHTML = `오늘 <strong>${ds}</strong> — 출차 예정 없음`;
+  }
+}
+
+// ── 상세 팝업 ──────────────────────────────────
+function openDetail(slotId, laneLabel, slotPos, alert) {
+  currentSlotId = slotId;
+  currentSlotMeta = { laneLabel, slotPos };
+  const data = parkingData[slotId];
+  if (!data) return;
+
+  document.getElementById('detailRoom').textContent = data.room + '호';
+  document.getElementById('detailPos').textContent = `${laneLabel} · ${slotPos} · ${data.position === 'inner' ? '안쪽' : '바깥'}`;
+
+  const badge = document.getElementById('detailBadge');
+  if (alert) {
+    badge.textContent = '⚠ 연락필요';
+    badge.className = 'detail-badge badge-warn';
+  } else {
+    badge.textContent = '주차 중';
+    badge.className = 'detail-badge badge-ok';
+  }
+
+  document.getElementById('detailCar').textContent = data.car;
+  document.getElementById('detailDates').textContent =
+    `${fmtDateFull(data.start)} → ${fmtDateFull(data.end)}`;
+
+  const contactRow = document.getElementById('detailContactRow');
+  if (data.contact) {
+    contactRow.style.display = 'flex';
+    document.getElementById('detailContact').textContent = data.contact;
+    document.getElementById('callBtn').href = `tel:${data.contact.replace(/[^0-9+]/g,'')}`;
+  } else {
+    contactRow.style.display = 'none';
+  }
+
+  const memoRow = document.getElementById('detailMemoRow');
+  if (data.memo) {
+    memoRow.style.display = 'flex';
+    document.getElementById('detailMemo').textContent = data.memo;
+  } else {
+    memoRow.style.display = 'none';
+  }
+
+  document.getElementById('detailPopup').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detailPopup').classList.remove('open');
+}
+
+function openEditFromDetail() {
+  closeDetail();
+  const meta = currentSlotMeta;
+  openModal(currentSlotId, meta.laneLabel, meta.slotPos);
+}
+
+async function clearFromDetail() {
+  delete parkingData[currentSlotId];
+  await saveData();
+  render();
+  closeDetail();
+  showToast('주차 정보를 삭제했어요');
+}
+
+// ── 등록/수정 모달 ──────────────────────────────
+function openModal(slotId, laneLabel, slotPos) {
+  currentSlotId = slotId;
+  currentSlotMeta = { laneLabel, slotPos };
+  const data = parkingData[slotId];
+
+  document.getElementById('modalTitle').textContent = data ? '주차 정보 수정' : '주차 등록';
+  document.getElementById('modalSubtitle').textContent = `${laneLabel} · ${slotPos}`;
+  document.getElementById('inputRoom').value = data?.room || '';
+  document.getElementById('inputCar').value = data?.car || '';
+  document.getElementById('inputStart').value = data?.start || new Date().toISOString().slice(0,10);
+  document.getElementById('inputEnd').value = data?.end || '';
+  document.getElementById('inputContact').value = data?.contact || '';
+  document.getElementById('inputMemo').value = data?.memo || '';
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+async function saveSlot() {
+  const room = document.getElementById('inputRoom').value.trim();
+  const car = document.getElementById('inputCar').value.trim();
+  const start = document.getElementById('inputStart').value;
+  const end = document.getElementById('inputEnd').value;
+  const contact = document.getElementById('inputContact').value.trim();
+  const memo = document.getElementById('inputMemo').value.trim();
+
+  if (!room || !car || !start || !end) {
+    showToast('호실, 차량번호, 기간을 입력해주세요');
+    return;
+  }
+
+  parkingData[currentSlotId] = { room, car, start, end, contact, memo };
+  await saveData();
+  render();
+  closeModal();
+  showToast('저장됐어요');
+}
+
+// 배경 탭으로 닫기
+document.getElementById('detailPopup').addEventListener('click', function(e) {
+  if (e.target === this) closeDetail();
+});
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── 초기 로드 + 자정 자동 정리 ─────────────────
+loadData();
+
+// 자정에 자동 만료 체크
+function scheduleAutoExpire() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 1, 0);
+  const msUntil = midnight - now;
+  setTimeout(async () => {
+    const expired = autoExpire();
+    if (expired) { await saveData(); render(); }
+    scheduleAutoExpire(); // 다음 자정 예약
+  }, msUntil);
+}
+scheduleAutoExpire();
+</script>
+</body>
+</html>

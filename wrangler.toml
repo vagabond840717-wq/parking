@@ -1,0 +1,7 @@
+name = "parking"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "PARKING_KV"
+id = "7eba2c0070864f0c8293f3bf2b5c4a97"

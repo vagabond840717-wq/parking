@@ -858,9 +858,14 @@ function openDetail(slotId, laneLabel, slotPos, alert, viewDate) {
   currentSlotId = slotId;
   currentSlotMeta = { laneLabel, slotPos };
   const vd = viewDate || getViewDate();
-  const resv = getActiveResvOnDate(slotId, vd);
+  let resv = getActiveResvOnDate(slotId, vd);
+  const allResvs = parkingData[slotId] || [];
+  if (!resv) {
+    // 활성 예약 없으면 가장 가까운 미래 예약
+    resv = allResvs.filter(r => r.start >= vd).sort((a,b) => a.start.localeCompare(b.start))[0];
+  }
   if (!resv) return;
-  editingResvIdx = (parkingData[slotId] || []).indexOf(resv);
+  editingResvIdx = allResvs.indexOf(resv);
 
   document.getElementById('detailRoom').textContent = resv.room + '호';
   document.getElementById('detailPos').textContent = `${laneLabel} · ${slotPos}`;
@@ -1035,8 +1040,9 @@ async function saveSlot() {
   } else {
     arr.push(newResv);
   }
-  // 날짜순 정렬
+  // 날짜순 정렬 후 editingResvIdx 재조정
   arr.sort((a, b) => a.start.localeCompare(b.start));
+  editingResvIdx = arr.indexOf(newResv);
 
   await saveData();
   render();

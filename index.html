@@ -599,10 +599,10 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">입차일</label>
-        <input class="form-input" id="inputStart" type="date">
+        <input class="form-input" id="inputStart" type="date" onchange="updateStartHint()">
       </div>
       <div class="form-group">
-        <label class="form-label">출차일</label>
+        <label class="form-label">출차일 <span id="startHint" style="color:var(--accent);font-size:11px;font-weight:400;"></span></label>
         <input class="form-input" id="inputEnd" type="date">
       </div>
     </div>
@@ -905,7 +905,10 @@ function openDetail(slotId, laneLabel, slotPos, alert, viewDate) {
           <span style="color:var(--text2);font-size:12px;margin-left:8px;">${r.start.slice(5).replace('-','/')} ~ ${r.end.slice(5).replace('-','/')}</span>
           <span style="color:var(--text2);font-size:11px;margin-left:6px;">${r.car}</span>
         </div>
-        <button onclick="deleteResvByIdx('${slotId}', ${realIdx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">✕</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button onclick="editResvByIdx('${slotId}', ${realIdx})" style="background:none;border:1px solid var(--accent);color:var(--accent);cursor:pointer;font-size:11px;padding:2px 8px;border-radius:4px;">수정</button>
+          <button onclick="deleteResvByIdx('${slotId}', ${realIdx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">✕</button>
+        </div>
       </div>`;
     }).join('');
   } else {
@@ -953,6 +956,21 @@ function openAddReservation() {
   openModal(currentSlotId, currentSlotMeta.laneLabel, currentSlotMeta.slotPos, null);
 }
 
+function editResvByIdx(slotId, idx) {
+  closeDetail();
+  openModal(slotId, currentSlotMeta.laneLabel, currentSlotMeta.slotPos, idx);
+}
+
+function updateStartHint() {
+  const startVal = document.getElementById('inputStart').value;
+  const hint = document.getElementById('startHint');
+  if (hint && startVal) {
+    hint.textContent = '입차: ' + startVal.slice(5).replace('-', '/');
+  } else if (hint) {
+    hint.textContent = '';
+  }
+}
+
 // ── 등록/수정 모달 ──────────────────────────────
 function openModal(slotId, laneLabel, slotPos, resvIdx) {
   currentSlotId = slotId;
@@ -968,6 +986,12 @@ function openModal(slotId, laneLabel, slotPos, resvIdx) {
   document.getElementById('inputCar').value = resv?.car || '';
   document.getElementById('inputStart').value = resv?.start || todayStr();
   document.getElementById('inputEnd').value = resv?.end || '';
+  // 입차일 힌트 업데이트
+  const hint = document.getElementById('startHint');
+  if (hint) {
+    const sv = resv?.start || todayStr();
+    hint.textContent = '입차: ' + sv.slice(5).replace('-', '/');
+  }
   document.getElementById('inputContact').value = resv?.contact || '';
   document.getElementById('inputMemo').value = resv?.memo || '';
 

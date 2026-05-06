@@ -896,7 +896,6 @@ function openDetail(slotId, laneLabel, slotPos, alert, viewDate) {
   } else { memoRow.style.display = 'none'; }
 
   // 대기 예약 목록
-  const allResvs = parkingData[slotId] || [];
   const pending = allResvs.filter((r, i) => i !== editingResvIdx);
   const pendingList = document.getElementById('pendingList');
   const pendingItems = document.getElementById('pendingItems');

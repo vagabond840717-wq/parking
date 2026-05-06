@@ -338,6 +338,8 @@
     padding: 20px 20px 28px;
     width: 100%;
     max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
     animation: slideUp 0.22s ease;
   }
   @keyframes slideUp {
@@ -617,6 +619,11 @@
     <div class="btn-row">
       <button class="btn btn-cancel" onclick="closeModal()">취소</button>
       <button class="btn btn-primary" onclick="saveSlot()">저장</button>
+    </div>
+    <!-- 대기예약 리스트 -->
+    <div id="modalPendingList" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">대기 예약</div>
+      <div id="modalPendingItems"></div>
     </div>
   </div>
 </div>
@@ -1007,6 +1014,38 @@ function openModal(slotId, laneLabel, slotPos, resvIdx) {
   }
   document.getElementById('inputContact').value = resv?.contact || '';
   document.getElementById('inputMemo').value = resv?.memo || '';
+
+  // 대기예약 리스트 렌더링 (현재 수정 중인 것 제외)
+  const today = todayStr();
+  const skipIdx = (resvIdx !== null && resvIdx >= 0) ? resvIdx : -1;
+  const pending = arr.filter((r, i) => i !== skipIdx && r.end > today)
+                     .sort((a, b) => a.start.localeCompare(b.start));
+  const modalPendingList = document.getElementById('modalPendingList');
+  const modalPendingItems = document.getElementById('modalPendingItems');
+  if (pending.length > 0) {
+    modalPendingList.style.display = 'block';
+    modalPendingItems.innerHTML = pending.map(r => {
+      const realIdx = arr.indexOf(r);
+      const startMd = r.start.slice(5).replace('-', '/');
+      const endMd = r.end.slice(5).replace('-', '/');
+      return `<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--accent);font-weight:700;">📅 ${startMd} → ${endMd}</span>
+          <div style="display:flex;gap:8px;">
+            <button onclick="editResvByIdx('${slotId}', ${realIdx})" style="background:none;border:1px solid var(--accent);color:var(--accent);cursor:pointer;font-size:11px;padding:2px 8px;border-radius:4px;">수정</button>
+            <button onclick="deleteResvByIdx('${slotId}', ${realIdx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">✕</button>
+          </div>
+        </div>
+        <div style="margin-top:4px;display:flex;gap:12px;">
+          <span style="font-weight:700;font-size:13px;">${r.room}호</span>
+          <span style="color:var(--text2);font-size:12px;">${r.car}</span>
+          ${r.contact ? `<span style="color:var(--text2);font-size:12px;">${r.contact}</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    modalPendingList.style.display = 'none';
+  }
 
   document.getElementById('modalOverlay').classList.add('open');
 }

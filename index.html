@@ -802,7 +802,13 @@ function render() {
       if (resv) {
         block.onclick = () => openDetail(slot.id, lane.label, slot.pos, alert, viewDate);
       } else {
-        block.onclick = () => openModal(slot.id, lane.label, slot.pos, null);
+        // 미래 예약이 있으면 상세팝업, 없으면 등록 모달
+        const futureResvs = (parkingData[slot.id] || []).filter(r => r.end > viewDate);
+        if (futureResvs.length > 0) {
+          block.onclick = () => openDetail(slot.id, lane.label, slot.pos, false, viewDate);
+        } else {
+          block.onclick = () => openModal(slot.id, lane.label, slot.pos, null);
+        }
       }
 
       // 대기 예약 수 뱃지

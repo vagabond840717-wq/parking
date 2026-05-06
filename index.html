@@ -802,13 +802,7 @@ function render() {
       if (resv) {
         block.onclick = () => openDetail(slot.id, lane.label, slot.pos, alert, viewDate);
       } else {
-        // 미래 예약이 있으면 상세팝업, 없으면 등록 모달
-        const futureResvs = (parkingData[slot.id] || []).filter(r => r.end > viewDate);
-        if (futureResvs.length > 0) {
-          block.onclick = () => openDetail(slot.id, lane.label, slot.pos, false, viewDate);
-        } else {
-          block.onclick = () => openModal(slot.id, lane.label, slot.pos, null);
-        }
+        block.onclick = () => openModal(slot.id, lane.label, slot.pos, null);
       }
 
       // 대기 예약 수 뱃지
@@ -870,12 +864,6 @@ function openDetail(slotId, laneLabel, slotPos, alert, viewDate) {
     // 활성 예약 없으면 가장 가까운 미래 예약
     resv = allResvs.filter(r => r.start >= vd).sort((a,b) => a.start.localeCompare(b.start))[0];
   }
-  // 현재 활성 예약 없어도 대기예약 있으면 팝업 열기
-  const hasActive = !!resv;
-  if (!resv) {
-    // 첫 번째 미래 예약을 대표로 사용
-    resv = allResvs.filter(r => r.end > vd).sort((a,b) => a.start.localeCompare(b.start))[0];
-  }
   if (!resv) return;
   editingResvIdx = allResvs.indexOf(resv);
 
@@ -883,10 +871,7 @@ function openDetail(slotId, laneLabel, slotPos, alert, viewDate) {
   document.getElementById('detailPos').textContent = `${laneLabel} · ${slotPos}`;
 
   const badge = document.getElementById('detailBadge');
-  if (!hasActive) {
-    badge.textContent = '대기 예약';
-    badge.className = 'detail-badge badge-warn';
-  } else if (alert) {
+  if (alert) {
     badge.textContent = '⚠ 연락필요';
     badge.className = 'detail-badge badge-warn';
   } else {
@@ -916,17 +901,26 @@ function openDetail(slotId, laneLabel, slotPos, alert, viewDate) {
   const pendingItems = document.getElementById('pendingItems');
   if (pending.length > 0) {
     pendingList.style.display = 'block';
-    pendingItems.innerHTML = pending.map((r, i) => {
+    // 날짜순 정렬
+    const sortedPending = [...pending].sort((a,b) => a.start.localeCompare(b.start));
+    pendingItems.innerHTML = sortedPending.map((r) => {
       const realIdx = allResvs.indexOf(r);
-      return `<div style="background:var(--surface2);border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
-        <div>
-          <span style="font-weight:700;">${r.room}호</span>
-          <span style="color:var(--text2);font-size:12px;margin-left:8px;">${r.start.slice(5).replace('-','/')} ~ ${r.end.slice(5).replace('-','/')}</span>
-          <span style="color:var(--text2);font-size:11px;margin-left:6px;">${r.car}</span>
+      const startMd = r.start.slice(5).replace('-','/');
+      const endMd = r.end.slice(5).replace('-','/');
+      return `<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <span style="font-size:12px;color:var(--accent);font-weight:700;">📅 ${startMd} → ${endMd}</span>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button onclick="editResvByIdx('${slotId}', ${realIdx})" style="background:none;border:1px solid var(--accent);color:var(--accent);cursor:pointer;font-size:11px;padding:2px 8px;border-radius:4px;">수정</button>
+            <button onclick="deleteResvByIdx('${slotId}', ${realIdx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">✕</button>
+          </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <button onclick="editResvByIdx('${slotId}', ${realIdx})" style="background:none;border:1px solid var(--accent);color:var(--accent);cursor:pointer;font-size:11px;padding:2px 8px;border-radius:4px;">수정</button>
-          <button onclick="deleteResvByIdx('${slotId}', ${realIdx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;">✕</button>
+        <div style="margin-top:4px;display:flex;gap:12px;align-items:center;">
+          <span style="font-weight:700;font-size:13px;">${r.room}호</span>
+          <span style="color:var(--text2);font-size:12px;">${r.car}</span>
+          ${r.contact ? `<span style="color:var(--text2);font-size:12px;">${r.contact}</span>` : ''}
         </div>
       </div>`;
     }).join('');
